@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Digitale Racket Toss – Animatie</title>
+<title>Digitale Racket Toss – Kaarten draaien</title>
 <style>
 body{font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;text-align:center}
 textarea{width:320px;height:150px}
@@ -16,7 +16,8 @@ button{margin:8px;padding:10px 18px;font-size:16px;cursor:pointer}
 .card-inner{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform 1s}
 .card.flip .card-inner{transform:rotateY(180deg)}
 .card-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:10px;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:28px;font-weight:bold;border:2px solid #333}
-.card-back{background:repeating-linear-gradient(45deg,#003366,#003366 10px,#0055aa 10px,#0055aa 20px);color:white}
+.card-back{background:white;display:flex;justify-content:center;align-items:center}
+.card-back img{max-width:70%;opacity:.9}
 .card-front{background:white;transform:rotateY(180deg)}
 .rood{color:darkred;border-color:darkred}
 .zwart{color:black;border-color:black}
@@ -28,27 +29,152 @@ button{margin:8px;padding:10px 18px;font-size:16px;cursor:pointer}
 </style>
 </head>
 <body>
-<h1>🎾 Digitale Racket Toss – Kaarten draaien</h1>
-<p>Kaarten verschijnen één voor één met vertraging</p>
+
+<img src="https://storage.knltb.club/logos/2964cfd3-8868-4df8-8c35-c703493af3ea.png" alt="TV TeVer logo" style="max-width:160px;margin-bottom:10px;">
+<h1>🎾 Digitale Racket Toss</h1>
+<p>Laad spelers, selecteer wie meedoet en draai de kaarten</p>
+
 <textarea id="names" placeholder="Naam 1\nNaam 2\nNaam 3..."></textarea><br>
-<button onclick="loadPlayers()">📋 Spelers laden</button>
+<button id="loadBtn">📋 Spelers laden</button>
+
 <div id="players" class="players-list"></div>
-<button onclick="dealAnimated()">🎡 Draaien</button>
+
+<button id="dealBtn">🎡 Draaien</button>
+
 <div id="message" class="error"></div>
 <div id="cards" class="cards"></div>
 <div id="courts" class="courts"></div>
+
 <script>
+const LOGO = 'https://storage.knltb.club/logos/2964cfd3-8868-4df8-8c35-c703493af3ea.png';
 const ranks=['A','K','Q','J'];
 const rankNames={A:'Aas',K:'Heer',Q:'Vrouw',J:'Boer'};
 let allPlayers=[];
+
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
-function loadPlayers(){const c=document.getElementById('players');c.innerHTML='';allPlayers=document.getElementById('names').value.split('\n').map(n=>n.trim()).filter(Boolean);if(allPlayers.length<4){msg('Minimaal 4 spelers');return}msg('');allPlayers.forEach(n=>{const d=document.createElement('div');d.className='player-item';d.innerHTML=`<label><input type=checkbox checked data-name="${n}"> ${n}</label>`;c.appendChild(d)});renderEmpty();document.getElementById('courts').innerHTML=''}
 function msg(t){document.getElementById('message').textContent=t}
-function activePlayers(){return[...document.querySelectorAll('#players input:checked')].map(c=>c.dataset.name)}
-function buildDeck(count){const d=[];ranks.forEach(r=>{d.push({rank:r,color:'Zwart',suit:'♠'});d.push({rank:r,color:'Zwart',suit:'♣'});d.push({rank:r,color:'Rood',suit:'♥'});d.push({rank:r,color:'Rood',suit:'♦'})});shuffle(d);return d.slice(0,count)}
-function renderEmpty(){const c=document.getElementById('cards');c.innerHTML='';allPlayers.forEach(n=>{const s=document.createElement('div');s.className='card-slot inactive';s.innerHTML=`<strong>${n}</strong><div class="card"><div class="card-inner"><div class="card-face card-back">🎴</div><div class="card-face card-front"></div></div></div>`;c.appendChild(s)})}
-async function dealAnimated(){const act=activePlayers();if(act.length%4!==0||act.length===0){msg('Selecteer een veelvoud van 4 spelers');return}msg('');const deck=buildDeck(act.length);renderEmpty();const slots=[...document.querySelectorAll('.card-slot')];let assignments={};for(let i=0;i<act.length;i++){const name=act[i];const card=deck[i];assignments[name]=card;const idx=allPlayers.indexOf(name);const slot=slots[idx];const inner=slot.querySelector('.card-inner');const front=slot.querySelector('.card-front');front.className=`card-face card-front ${card.color==='Rood'?'rood':'zwart'}`;front.innerHTML=`<div>${card.rank}</div><div class="suit">${card.suit}</div>`;await new Promise(r=>setTimeout(r,700));slot.classList.remove('inactive');slot.querySelector('.card').classList.add('flip')}renderCourts(assignments)}
-function renderCourts(assignments){const c=document.getElementById('courts');c.innerHTML='';const g={};Object.entries(assignments).forEach(([n,card])=>{if(!g[card.rank])g[card.rank]=[];g[card.rank].push({n,card})});let i=1;Object.entries(g).forEach(([r,grp])=>{if(grp.length===4){const z=grp.filter(p=>p.card.color==='Zwart');const rd=grp.filter(p=>p.card.color==='Rood');const d=document.createElement('div');d.className='court';d.innerHTML=`<h3>Baan ${i++} – ${rankNames[r]}</h3><p class=zwart>⬛ ${z[0].n} & ${z[1].n}</p><p><strong>vs</strong></p><p class=rood>🟥 ${rd[0].n} & ${rd[1].n}</p>`;c.appendChild(d)}})}
+
+function loadPlayers(){
+  const namesField=document.getElementById('names');
+  const list=document.getElementById('players');
+  list.innerHTML='';
+
+  allPlayers = namesField.value
+    .split('\n')
+    .map(n=>n.trim())
+    .filter(Boolean);
+
+  if(allPlayers.length<4){msg('Minimaal 4 spelers invoeren');return;}
+  msg('');
+
+  allPlayers.forEach(n=>{
+    const d=document.createElement('div');
+    d.className='player-item';
+    d.innerHTML=`<label><input type="checkbox" checked data-name="${n}"> ${n}</label>`;
+    list.appendChild(d);
+  });
+
+  renderEmptyCards();
+  document.getElementById('courts').innerHTML='';
+}
+
+function activePlayers(){
+  return [...document.querySelectorAll('#players input:checked')]
+    .map(c=>c.dataset.name);
+}
+
+function renderEmptyCards(){
+  const c=document.getElementById('cards');
+  c.innerHTML='';
+  allPlayers.forEach(n=>{
+    const s=document.createElement('div');
+    s.className='card-slot inactive';
+    s.innerHTML=`<strong>${n}</strong>
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-face card-back"><img src="${LOGO}" alt="TeVer"></div>
+          <div class="card-face card-front"></div>
+        </div>
+      </div>`;
+    c.appendChild(s);
+  });
+}
+
+function buildDeck(count){
+  // bepaal hoeveel kaartsoorten nodig zijn (4 spelers per soort)
+  const neededRanks = count / 4;
+  const selectedRanks = ranks.slice(0, neededRanks);
+
+  const d = [];
+  selectedRanks.forEach(r => {
+    d.push({rank:r,color:'Zwart',suit:'♠'});
+    d.push({rank:r,color:'Zwart',suit:'♣'});
+    d.push({rank:r,color:'Rood',suit:'♥'});
+    d.push({rank:r,color:'Rood',suit:'♦'});
+  });
+
+  shuffle(d);
+  return d;
+}
+
+async function dealAnimated(){
+  const act=activePlayers();
+  if(act.length===0||act.length%4!==0){msg('Selecteer een veelvoud van 4 spelers');return;}
+  msg('');
+
+  renderEmptyCards();
+  const deck=buildDeck(act.length);
+  const order=act.map((n,i)=>({name:n,card:deck[i]}));
+  shuffle(order);
+
+  const slots=[...document.querySelectorAll('.card-slot')];
+  const assignments={};
+
+  for(const o of order){
+    assignments[o.name]=o.card;
+    const idx=allPlayers.indexOf(o.name);
+    const slot=slots[idx];
+    const front=slot.querySelector('.card-front');
+
+    front.className=`card-face card-front ${o.card.color==='Rood'?'rood':'zwart'}`;
+    front.innerHTML=`<div>${o.card.rank}</div><div class="suit">${o.card.suit}</div>`;
+
+    await new Promise(r=>setTimeout(r,1200));
+    slot.classList.remove('inactive');
+    slot.querySelector('.card').classList.add('flip');
+  }
+
+  await new Promise(r=>setTimeout(r,800));
+  renderCourts(assignments);
+}
+
+function renderCourts(assignments){
+  const c=document.getElementById('courts');
+  c.innerHTML='';
+  const g={};
+  Object.entries(assignments).forEach(([n,card])=>{
+    if(!g[card.rank]) g[card.rank]=[];
+    g[card.rank].push({n,card});
+  });
+  let i=1;
+  Object.entries(g).forEach(([r,grp])=>{
+    if(grp.length===4){
+      const z=grp.filter(p=>p.card.color==='Zwart');
+      const rd=grp.filter(p=>p.card.color==='Rood');
+      const d=document.createElement('div');
+      d.className='court';
+      d.innerHTML=`<h3>Baan ${i++} – ${rankNames[r]}</h3>
+        <p class="zwart">⬛ ${z[0].n} & ${z[1].n}</p>
+        <p><strong>vs</strong></p>
+        <p class="rood">🟥 ${rd[0].n} & ${rd[1].n}</p>`;
+      c.appendChild(d);
+    }
+  });
+}
+
+// event bindings
+document.getElementById('loadBtn').addEventListener('click', loadPlayers);
+document.getElementById('dealBtn').addEventListener('click', dealAnimated);
 </script>
 </body>
 </html>
